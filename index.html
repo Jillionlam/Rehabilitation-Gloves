@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Dashboard theo dõi tiến độ tập phục hồi chức năng tay và điều khiển thiết bị ESP32."
+  />
+  <title>HandCare - Theo dõi phục hồi chức năng tay</title>
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <section class="login-screen" id="loginScreen" aria-labelledby="loginTitle">
+    <div class="login-card">
+      <div class="login-card__brand">
+        <div class="brand__icon" aria-hidden="true">HC</div>
+        <div>
+          <p class="eyebrow">Hệ thống giám sát phục hồi chức năng</p>
+          <h1 id="loginTitle">Đăng nhập HandCare</h1>
+          <p>Đăng nhập để xem tiến độ tập luyện, biểu đồ góc gập tay và trạng thái thiết bị.</p>
+        </div>
+      </div>
+
+      <form id="loginForm" class="login-form" novalidate>
+        <div class="form-group">
+          <label for="username">Tên tài khoản</label>
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="Nhập tên tài khoản" required />
+          <small id="usernameError" class="field-error"></small>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Mật khẩu</label>
+          <div class="password-field">
+            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required />
+            <button id="togglePasswordButton" class="password-toggle" type="button" aria-label="Hiện mật khẩu">Hiện</button>
+          </div>
+          <small id="passwordError" class="field-error"></small>
+        </div>
+
+        <label class="remember-row">
+          <input id="rememberAccount" type="checkbox" />
+          <span>Ghi nhớ tài khoản trên thiết bị này</span>
+        </label>
+
+        <button id="loginButton" class="primary-button login-button" type="submit">Đăng nhập</button>
+
+        <p class="login-note">Tài khoản demo: <strong>benhnhan</strong> — Mật khẩu: <strong>123456</strong></p>
+        <div id="loginMessage" class="login-message" aria-live="polite"></div>
+      </form>
+
+      <div class="login-security-note">
+        <strong>Lưu ý triển khai thật</strong>
+        <p>Đăng nhập trong bản demo chỉ chạy trên trình duyệt. Khi triển khai thực tế, mật khẩu phải được kiểm tra tại backend và không được lưu trực tiếp trong JavaScript.</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell" hidden>
+  <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__icon" aria-hidden="true">HC</div>
+      <div>
+        <h1>HandCare</h1>
+        <p>Theo dõi phục hồi chức năng tay</p>
+      </div>
+    </div>
+
+    <div class="topbar__actions">
+      <div class="sync-status" id="syncStatus" aria-live="polite">
+        <span class="status-dot status-dot--online"></span>
+        <span>Đã đồng bộ lúc <strong id="lastSyncTime">--:--</strong></span>
+      </div>
+
+      <button class="icon-button" id="openGuideButton" type="button" aria-label="Mở hướng dẫn sử dụng">
+        ?
+      </button>
+
+      <button class="logout-button" id="logoutButton" type="button">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="page-shell" id="main-content">
+    <section class="welcome-panel" aria-labelledby="welcomeTitle">
+      <div>
+        <p class="eyebrow">Tổng quan hôm nay</p>
+        <h2 id="welcomeTitle">Xin chào, Nguyễn Văn An</h2>
+        <p>
+          Hãy duy trì nhịp tập đều đặn. Dữ liệu bên dưới giúp bạn và người chăm sóc
+          theo dõi mức độ tiến bộ theo thời gian.
+        </p>
+      </div>
+
+      <div class="daily-goal" aria-label="Tiến độ mục tiêu hôm nay">
+        <div class="daily-goal__ring" id="dailyGoalRing">
+          <span id="dailyGoalPercent">75%</span>
+        </div>
+        <div>
+          <strong>Mục tiêu hôm nay</strong>
+          <span id="dailyGoalText">15 / 20 phút</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="quick-guide-section" aria-labelledby="quickGuideTitle">
+      <aside class="card guide-card">
+        <div class="card__header">
+          <div>
+            <p class="eyebrow">Hướng dẫn nhanh</p>
+            <h2 id="quickGuideTitle">Bắt đầu tập an toàn</h2>
+          </div>
+        </div>
+
+        <ol class="guide-steps">
+          <li>
+            <span>1</span>
+            <div>
+              <strong>Đeo thiết bị đúng vị trí</strong>
+              <p>Cố định đai vừa phải, không siết quá chặt.</p>
+            </div>
+          </li>
+          <li>
+            <span>2</span>
+            <div>
+              <strong>Kiểm tra trạng thái thiết bị</strong>
+              <p>Đảm bảo hệ thống hiển thị “Đã kết nối” trước khi vận hành máy.</p>
+            </div>
+          </li>
+          <li>
+            <span>3</span>
+            <div>
+              <strong>Tập chậm và đều</strong>
+              <p>Dừng ngay khi đau, tê hoặc có cảm giác bất thường.</p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="monitoring-only-note">
+          <strong>Chế độ chỉ giám sát</strong>
+          <p>Buổi tập được bắt đầu trực tiếp trên máy phục hồi chức năng. Website chỉ hiển thị dữ liệu và trạng thái thiết bị.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="device-panel" aria-labelledby="deviceTitle">
+      <div class="device-panel__info">
+        <div class="device-icon" aria-hidden="true">⚙</div>
+        <div>
+          <p class="eyebrow">Thiết bị tập luyện</p>
+          <h2 id="deviceTitle">Máy phục hồi tay ESP32</h2>
+          <div class="device-meta">
+            <span id="deviceConnectionBadge" class="badge badge--success">Đã kết nối</span>
+            <span id="deviceModeText">Chế độ: Hỗ trợ tự động</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="device-panel__control">
+        <div>
+          <span>Trạng thái máy</span>
+          <strong id="devicePowerLabel">Đang bật</strong>
+        </div>
+
+        <button
+          id="deviceToggle"
+          class="power-switch is-on"
+          type="button"
+          role="switch"
+          aria-checked="true"
+          aria-label="Bật hoặc tắt máy phục hồi tay"
+        >
+          <span class="power-switch__track">
+            <span class="power-switch__thumb"></span>
+          </span>
+          <span class="power-switch__text">BẬT</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="filter-row" aria-label="Lọc dữ liệu theo thời gian">
+      <div>
+        <p class="eyebrow">Khoảng thời gian thống kê</p>
+        <h2>Tiến độ tập luyện</h2>
+      </div>
+
+      <div class="segmented-control" role="group" aria-label="Chọn khoảng thời gian">
+        <button class="range-button is-active" type="button" data-range="week">Tuần</button>
+        <button class="range-button" type="button" data-range="month">Tháng</button>
+        <button class="range-button" type="button" data-range="year">Năm</button>
+      </div>
+    </section>
+
+    <section class="stats-grid" aria-label="Các chỉ số chính">
+      <article class="stat-card">
+        <div class="stat-card__icon" aria-hidden="true">⏱</div>
+        <div>
+          <p>Thời gian tập</p>
+          <strong id="totalTrainingTime">145 phút</strong>
+          <span id="trainingTimeChange" class="trend trend--up">↑ 12% so với tuần trước</span>
+        </div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-card__icon" aria-hidden="true">Ø</div>
+        <div>
+          <p>Trung bình mỗi buổi</p>
+          <strong id="averageSessionTime">24 phút</strong>
+          <span id="averageSessionHint">Mục tiêu đề xuất: 20 phút</span>
+        </div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-card__icon" aria-hidden="true">✓</div>
+        <div>
+          <p>Số buổi hoàn thành</p>
+          <strong id="completedSessions">6 / 7 buổi</strong>
+          <span id="completionRate">Tỷ lệ hoàn thành 86%</span>
+        </div>
+      </article>
+
+      <article class="stat-card stat-card--accent">
+        <div class="stat-card__icon" aria-hidden="true">N</div>
+        <div>
+          <p>Mức lực hỗ trợ</p>
+          <strong id="supportForce">Trung bình</strong>
+          <span id="supportForceValue">Cài đặt hiện tại: 35%</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="card chart-card" aria-labelledby="chartTitle">
+        <div class="card__header">
+          <div>
+            <p class="eyebrow">Biên độ vận động</p>
+            <h2 id="chartTitle">Biểu đồ góc gập tay</h2>
+            <p id="chartSubtitle">Theo dõi góc gập lớn nhất trong 7 ngày gần đây</p>
+          </div>
+
+          <div class="chart-legend" aria-label="Chú thích biểu đồ">
+            <span><i class="legend-dot legend-dot--primary"></i>Góc gập đạt được</span>
+            <span><i class="legend-line"></i>Mục tiêu điều trị</span>
+          </div>
+        </div>
+
+        <div class="chart-summary">
+          <div>
+            <span>Góc gập hiện tại</span>
+            <strong id="currentFlexion">78°</strong>
+          </div>
+          <div>
+            <span>Cải thiện</span>
+            <strong id="flexionImprovement" class="positive-text">+13°</strong>
+          </div>
+          <div>
+            <span>Mục tiêu</span>
+            <strong id="flexionTarget">90°</strong>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <canvas
+            id="flexionChart"
+            role="img"
+            aria-label="Biểu đồ đường thể hiện góc gập tay theo thời gian"
+          ></canvas>
+          <div id="chartTooltip" class="chart-tooltip" hidden></div>
+        </div>
+      </article>
+
+      <aside class="card analysis-card" aria-labelledby="analysisTitle">
+        <div class="card__header">
+          <div>
+            <p class="eyebrow">Phân tích tự động</p>
+            <h2 id="analysisTitle">Đánh giá tiến độ</h2>
+          </div>
+          <span id="progressBadge" class="badge badge--success">Đang tiến bộ</span>
+        </div>
+
+        <div class="score-block">
+          <div class="score-block__value">
+            <strong id="progressScore">82</strong>
+            <span>/100</span>
+          </div>
+          <div class="score-block__bar" aria-label="Điểm tiến độ 82 trên 100">
+            <span id="progressBar" style="width: 82%"></span>
+          </div>
+          <p id="scoreDescription">
+            Tiến độ tốt. Góc gập và thời lượng tập đều tăng so với giai đoạn trước.
+          </p>
+        </div>
+
+        <div class="analysis-list">
+          <div class="analysis-item">
+            <span class="analysis-item__icon analysis-item__icon--good" aria-hidden="true">✓</span>
+            <div>
+              <strong>Thời lượng tập phù hợp</strong>
+              <p id="durationAnalysis">Bạn đã đạt trung bình 24 phút mỗi buổi.</p>
+            </div>
+          </div>
+
+          <div class="analysis-item">
+            <span class="analysis-item__icon analysis-item__icon--good" aria-hidden="true">↗</span>
+            <div>
+              <strong>Biên độ gập đang tăng</strong>
+              <p id="flexionAnalysis">Tăng 13° trong 7 ngày gần nhất.</p>
+            </div>
+          </div>
+
+          <div class="analysis-item">
+            <span class="analysis-item__icon analysis-item__icon--warning" aria-hidden="true">!</span>
+            <div>
+              <strong>Khuyến nghị lực hỗ trợ</strong>
+              <p id="forceRecommendation">
+                Giữ mức hỗ trợ 35% trong 3 buổi tiếp theo, chưa nên giảm ngay.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="clinical-note">
+          <strong>Lưu ý an toàn</strong>
+          <p>
+            Kết quả trên chỉ hỗ trợ theo dõi, không thay thế đánh giá của bác sĩ hoặc
+            kỹ thuật viên phục hồi chức năng.
+          </p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="lower-grid">
+      <article class="card history-card" aria-labelledby="historyTitle">
+        <div class="card__header">
+          <div>
+            <p class="eyebrow">Nhật ký gần đây</p>
+            <h2 id="historyTitle">Lịch sử tập luyện</h2>
+          </div>
+          <button id="viewAllHistoryButton" class="text-button" type="button">Xem tất cả</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Thời gian</th>
+                <th scope="col">Thời lượng</th>
+                <th scope="col">Góc gập lớn nhất</th>
+                <th scope="col">Lực hỗ trợ</th>
+                <th scope="col">Kết quả</th>
+              </tr>
+            </thead>
+            <tbody id="trainingHistoryBody"></tbody>
+          </table>
+        </div>
+      </article>
+
+    </section>
+  </main>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <dialog id="guideDialog" class="modal">
+    <form method="dialog" class="modal__content">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Hướng dẫn sử dụng</p>
+          <h2>Vận hành máy phục hồi tay</h2>
+        </div>
+        <button class="icon-button" value="cancel" aria-label="Đóng hướng dẫn">×</button>
+      </div>
+
+      <div class="modal__body">
+        <section>
+          <h3>1. Trước khi bật máy</h3>
+          <p>
+            Ngồi ở tư thế thoải mái, đặt cẳng tay trên mặt phẳng chắc chắn và kiểm tra
+            các đai cố định không gây đau hoặc cản trở tuần hoàn.
+          </p>
+        </section>
+
+        <section>
+          <h3>2. Bật hoặc tắt máy</h3>
+          <p>
+            Dùng công tắc “Trạng thái máy” ở đầu trang. Chỉ bắt đầu tập khi hệ thống
+            hiển thị “Đã kết nối”.
+          </p>
+        </section>
+
+        <section>
+          <h3>3. Trong khi tập</h3>
+          <p>
+            Thực hiện đúng bài tập được bác sĩ hoặc kỹ thuật viên hướng dẫn. Không cố
+            gập tay vượt quá ngưỡng đau.
+          </p>
+        </section>
+
+        <section class="warning-box">
+          <h3>Dừng tập ngay khi</h3>
+          <p>
+            Xuất hiện đau tăng nhanh, tê, co cứng bất thường, chóng mặt hoặc thiết bị
+            phát ra tiếng/ký hiệu cảnh báo.
+          </p>
+        </section>
+      </div>
+
+      <div class="modal__footer">
+        <button class="secondary-button" value="cancel">Đã hiểu</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
