@@ -30,9 +30,9 @@ const CONFIG = {
   demoAccount: { username: "benhnhan", password: "123456" },
 
   // ---- Đọc dữ liệu thời gian thực từ ThingSpeak ----
-  useThingSpeak: false,
-  thingSpeakChannelId: "DIEN_CHANNEL_ID_CUA_BAN",
-  thingSpeakReadApiKey: "", // để trống nếu channel ThingSpeak là Public
+  useThingSpeak: true,
+  thingSpeakChannelId: "3424945",
+  thingSpeakReadApiKey: "53YHGO8I3D4IVQ00", // để trống nếu channel ThingSpeak là Public
   thingSpeakPollMs: 16000,  // ThingSpeak free tối thiểu 15s/lần, nên để >= 15000
 };
 
